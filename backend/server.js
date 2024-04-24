@@ -13,7 +13,7 @@ const pool = mysql.createPool({
   database: 'your_database_name'
 });
 
-// Route for handling sign-up form submission (POST request)
+// Example Code for connecting to MySQL
 app.post('/signup', async (req, res) => {
     const saltRounds = 10; // Adjust based on security needs
     try {
