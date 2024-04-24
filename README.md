@@ -25,9 +25,5 @@ cd CS157cafe
 5. once you're in the CS157cafe folder, in the terminal input:
 
 ```jsx
-npm init -y to initialize a package.json file.
-
-npm install express mysql2 
-
-npm install bcrypt
+npm i
 ```
