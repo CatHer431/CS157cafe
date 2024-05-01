@@ -27,3 +27,16 @@ cd CS157cafe
 ```jsx
 npm i
 ```
+
+6. Go to the backend folder
+
+```jsx
+cd backend
+```
+
+7. once the directory is set to backend to start the express server, in the terminal input:
+
+```jsx
+npm start
+```
+
