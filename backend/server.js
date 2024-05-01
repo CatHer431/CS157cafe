@@ -9,29 +9,30 @@ const checkRole = require("./auth-role");
 const http = require("http");
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 app.use(bodyParser.json());
 
 app.use(
   sessions({
     secret: "SECRET",
-    resave: false,
+    resave: true,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
-      sameSite: "strict",
+      path: "/",
+      secure: false,
+      sameSite: false,
       maxAge: 1000 * 60 * 60 * 24, //24 hours
     },
   })
 );
 
 const mysqlConfig = {
-  host: process.env.DB_HOST || "localhost",
+  host: process.env.DB_HOST || "cs157afinalproject.cf0eys4eap7p.us-west-1.rds.amazonaws.com",
   port: process.env.DB_PORT || "3306",
   user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "password1",
-  database: process.env.DB_NAME || "user_management",
+  password: process.env.DB_PASSWORD || "password123",
+  database: process.env.DB_NAME || "cafe",
 };
 
 let con = null;
@@ -77,9 +78,10 @@ app.get(,(req, res) => {
 });
 */
 
-app.post("/signup", async (req, res) => {
+app.post("/register", async (req, res) => {
+  console.log(req.body.password);
   bcrypt
-    .hash(req.body.password1, 10)
+    .hash(req.body.password, 10)
     .then(async (hashedPassword) => {
       //const con = await pool.getConnection();
       try {
@@ -87,18 +89,18 @@ app.post("/signup", async (req, res) => {
           .promise()
           .query(
             "INSERT INTO employees (name, role, username, password) VALUES (?, ?, ?, ?)",
-            [req.body.name, req.body.role, req.body.username1, hashedPassword]
+            [req.body.name, req.body.role, req.body.username, hashedPassword]
           );
         console.log("Saved");
         res.json({ message: "Account created successfully!" });
       } catch (error) {
         console.error("Error saving user:", error);
-        res.status(500).send({ error: "Error creating account" });
+        res.status(500).json({ error: "Error creating account" });
       }
     })
     .catch((error) => {
       console.error("Error hashing:", error);
-      res.status(500).send({ error: "Error hashing password" });
+      res.status(500).json({ error: "Error hashing password" });
     });
 });
 
@@ -110,14 +112,28 @@ app.post("/login", async (req, res) => {
     if (username && (await bcrypt.compare(password, user.password))) {
       const role = user.role;
       console.log(username, password, role);
-      req.session.userData = {
+      const sessionUser = {
         username: username,
         password: password,
         role: role,
       };
-      res.status(200).json({ message: "Login Successful" });
+      req.session.regenerate(function (err) {
+        if (err) next(err);
+
+        // store user information in session, typically a user id
+        req.session.user = sessionUser;
+
+        // save the session before redirection to ensure page
+        // load does not happen before session is saved
+        req.session.save(function (err) {
+          if (err) return next(err);
+          res.send("Hello");
+        });
+      });
+      // req.session.user = sessionUser;
+      //res.status(200).send(req.session.sessionID);
     } else {
-      res.status(401).send("Wrong username/password");
+      // res.status(401).send("Wrong username/password");
     }
   } catch (error) {
     console.error("Error logging in:", error);
@@ -125,25 +141,27 @@ app.post("/login", async (req, res) => {
   }
 });
 
-app.post("/logout", async (req, res) => {
-  try {
-    req.session.destroy((err) => {
-      if (err) {
-        console.error("Error destroying session: ", err);
-        return res.status(500).send("Error logging out");
-      }
-      res.json("User logged out");
-    });
-  } catch (error) {
-    console.error("Error logging out:", error);
-    res.status(500).send("Error logging out");
-  }
+app.post("/logout", (req, res, next) => {
+
+  req.session.destroy(function (err) {
+    if (err) return next(err);
+    res
+    .clearCookie("connect.sid", {
+      path: "/",
+      domain: "localhost",
+      //httpOnly: true,
+      //sameSite: false,
+    }).status(200)
+      .send("Cookie cleared.");
+    //res.send("");
+    // Redirect to login after session is regenerated and old session is destroyed
+    //res.redirect("http://localhost:5173/home");
+  });
 });
 
 // Template code for displaying statistics and data
 app.get("/employees", async (req, res) => {
   try {
-    const con = await pool.getConnection();
     const [employees] = await con.promise().query("SELECT * FROM employees");
     res.json(employees);
   } catch (error) {
