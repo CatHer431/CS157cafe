@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import './LoginPage.css';  // Import the CSS file
 
 function LoginPage() {
   const [username, setUsername] = useState('');
