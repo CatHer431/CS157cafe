@@ -10,8 +10,9 @@ import {
 } from "react-router-dom";
 import Home from "./pages";
 //import HomePage from "./pages/HomePage";
-import AboutPage from "./pages/AboutPage";
-import ContactPage from "./pages/ContactPage";
+import Inventory from "./pages/InventoryPage";
+import Recipe from "./pages/RecipePage";
+import Employee from "./pages/EmployeePage";
 import LoginPage from "./pages/LoginPage";
 
 
@@ -21,15 +22,10 @@ function App() {
             <Navbar />
             <Routes>
                 <Route path="/" element={<Home />} />
-                <Route path="/about" element={<AboutPage />} />
-                <Route
-                    path="/contact"
-                    element={<ContactPage />}
-                />
-                <Route
-                    path="/login"
-                    element={<LoginPage />}
-                />
+                <Route path="/inventory" element={<Inventory />} />
+                <Route path="/recipes" element={<Recipe />} />
+                <Route path="/employees" element={<Employee />} />
+                <Route path="/login" element={<LoginPage />} />
             </Routes>
         </Router>
     );

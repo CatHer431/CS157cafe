@@ -1,6 +1,6 @@
 import React from "react";
 
-const ContactPage = () => {
+const Recipe = () => {
     return (
         <div
             style={{
@@ -11,11 +11,14 @@ const ContactPage = () => {
             }}
         >
             <h1>
-                Contact us!
+                Recipes
             </h1>
+            <body>
+                Put Recipes Table Here
+            </body>
         </div>
     );
 };
 
-export default ContactPage;
+export default Recipe;
 

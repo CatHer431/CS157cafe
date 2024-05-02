@@ -1,6 +1,6 @@
 import React from "react";
 
-const AboutPage = () => {
+const Inventory = () => {
     return (
         <div
             style={{
@@ -11,11 +11,14 @@ const AboutPage = () => {
             }}
         >
             <h1>
-                About our page
+                Inventory
             </h1>
+            <body>
+                Put Inventory Table Here
+            </body>
         </div>
     );
 };
 
-export default AboutPage;
+export default Inventory;
 
