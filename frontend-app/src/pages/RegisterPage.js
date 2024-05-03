@@ -21,7 +21,7 @@ export function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post("http://localhost:3001/register", inputs);
+      await axios.post("http://localhost:3001/signup", inputs);
       navigate("/recipe");
     } catch (err) {
       setError(err.response.data);

@@ -9,25 +9,28 @@ const checkRole = require("./auth-role");
 const http = require("http");
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: "http://localhost:3000", credentials: true }));
 app.use(bodyParser.json());
 
 app.use(
   sessions({
     secret: "SECRET",
-    resave: false,
+    resave: true,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
-      sameSite: "strict",
+      path: "/",
+      secure: false,
+      sameSite: false,
       maxAge: 1000 * 60 * 60 * 24, //24 hours
     },
   })
 );
 
 const mysqlConfig = {
-  host: process.env.DB_HOST || "cs157afinalproject.cf0eys4eap7p.us-west-1.rds.amazonaws.com",
+  host:
+    process.env.DB_HOST ||
+    "cs157afinalproject.cf0eys4eap7p.us-west-1.rds.amazonaws.com",
   port: process.env.DB_PORT || "3306",
   user: process.env.DB_USER || "root",
   password: process.env.DB_PASSWORD || "password123",
@@ -57,7 +60,7 @@ const getUser = async (username) => {
   try {
     const [user] = await con
       .promise()
-      .query("SELECT * FROM employees WHERE username = ?", username);
+      .query("SELECT * FROM EMPLOYEE WHERE user_name = ?", username);
     return user.length ? user[0] : null;
   } catch {
     console.error("Error:", error);
@@ -86,7 +89,7 @@ app.post("/signup", async (req, res) => {
         await con
           .promise()
           .query(
-            "INSERT INTO employees (name, role, username, password) VALUES (?, ?, ?, ?)",
+            "INSERT INTO EMPLOYEE (name, role, user_name, password) VALUES (?, ?, ?, ?)",
             [req.body.name, req.body.role, req.body.username1, hashedPassword]
           );
         console.log("Saved");
@@ -110,12 +113,24 @@ app.post("/login", async (req, res) => {
     if (username && (await bcrypt.compare(password, user.password))) {
       const role = user.role;
       console.log(username, password, role);
-      req.session.userData = {
+      const sessionUser = {
         username: username,
         password: password,
         role: role,
       };
-      res.status(200).json({ message: "Login Successful" });
+      req.session.regenerate(function (err) {
+        if (err) next(err);
+
+        // store user information in session, typically a user id
+        req.session.user = sessionUser;
+
+        // save the session before redirection to ensure page
+        // load does not happen before session is saved
+        req.session.save(function (err) {
+          if (err) return next(err);
+          res.send("Login Successful");
+        });
+      });
     } else {
       res.status(401).send("Wrong username/password");
     }
@@ -125,34 +140,35 @@ app.post("/login", async (req, res) => {
   }
 });
 
-app.post("/logout", async (req, res) => {
-  try {
-    req.session.destroy((err) => {
-      if (err) {
-        console.error("Error destroying session: ", err);
-        return res.status(500).send("Error logging out");
-      }
-      res.json("User logged out");
-    });
-  } catch (error) {
-    console.error("Error logging out:", error);
-    res.status(500).send("Error logging out");
-  }
+app.post("/logout", async (req, res, next) => {
+  req.session.destroy(function (err) {
+    if (err) return next(err);
+    res
+    .clearCookie("connect.sid", {
+      path: "/",
+      domain: "localhost",
+      //httpOnly: true,
+      //sameSite: false,
+    }).status(200)
+      .send("Cookie cleared.");
+    //res.send("");
+    // Redirect to login after session is regenerated and old session is destroyed
+    //res.redirect("http://localhost:5173/home");
+  });
 });
 
 // Template code for displaying statistics and data
-app.get("/employees", async (req, res) => {
+app.get("/employees", checkRole('manager'), async (req, res) => {
   try {
-    const con = await pool.getConnection();
-    const [employees] = await con.promise().query("SELECT * FROM employees");
-    res.json(employees);
+    const [employees] = await con.promise().query("SELECT * FROM EMPLOYEE");
+    res.send(employees);
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-app.get("/customers", async (req, res) => {
+app.get("/customers", checkRole(['employee', 'manager']), async (req, res) => {
   try {
     const [customers] = await con.promise().query("SELECT * FROM customers");
     res.json(customers);
@@ -162,13 +178,13 @@ app.get("/customers", async (req, res) => {
   }
 });
 
-app.get("/inventory", async (req, res) => {
+app.get("/inventory", checkRole(['employee', 'manager']), async (req, res) => {
   try {
     //const con = await pool.getConnection();
     const [inventory] = await con
       .promise()
       .query(
-        "SELECT i.*, p.name, p.price FROM inventory i INNER JOIN Product p ON i.product_id = p.product_id"
+        "SELECT  i.ingredient_id, i.name, i.reorder_thres, v.quantity, v.inventory_id, v.exp_date, v.supplier, v.purchase_price FROM INVENTORY AS v  JOIN INGREDIENT AS i ON i.ingredient_id = v.ingredient_id;"
       );
     res.json(inventory);
   } catch (error) {
@@ -177,18 +193,18 @@ app.get("/inventory", async (req, res) => {
   }
 });
 
-app.get("/orders", async (req, res) => {
+app.get("/recipes", checkRole(['employee', 'manager']), async (req, res) => {
   try {
     //const con = await pool.getConnection();
-    const [orders] = await con.promise().query("SELECT * FROM orders");
-    res.json(orders);
+    const [recipes] = await con.promise().query("SELECT  r.recipe_id, p.name, p.description, group_concat(concat(i.name, ': ', rd.quantity) separator ', ') AS ingredients FROM RECIPE AS r  JOIN RECIPE_DETAIL AS rd ON r.recipe_id = rd.recipe_id  JOIN PRODUCT AS p ON r.product_id = p.product_id  JOIN INGREDIENT AS i ON rd.ingredient_id = i.ingredient_id group by r.recipe_id;");
+    res.send(recipes);
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-app.get("/transactions", async (req, res) => {
+app.get("/transactions", checkRole(['employee', 'manager']), async (req, res) => {
   try {
     //const con = await pool.getConnection();
     const [transactions] = await con
@@ -201,7 +217,7 @@ app.get("/transactions", async (req, res) => {
   }
 });
 
-app.get("/products", async (req, res) => {
+app.get("/products", checkRole(['employee', 'manager']), async (req, res) => {
   try {
     //const con = await pool.getConnection();
     const [products] = await con.promise().query("SELECT * FROM products");
