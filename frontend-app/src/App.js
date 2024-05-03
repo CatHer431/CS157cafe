@@ -13,7 +13,9 @@ import Home from "./pages";
 import Inventory from "./pages/InventoryPage";
 import Recipe from "./pages/RecipePage";
 import Employee from "./pages/EmployeePage";
+import Order from "./pages/OrderPage";
 import LoginPage from "./pages/LoginPage";
+import Register from "./pages/RegisterPage";
 
 
 function App() {
@@ -25,6 +27,8 @@ function App() {
                 <Route path="/inventory" element={<Inventory />} />
                 <Route path="/recipes" element={<Recipe />} />
                 <Route path="/employees" element={<Employee />} />
+                <Route path="/orders" element={<Order />} />
+                <Route path="/signup" element={<Register />} />
                 <Route path="/login" element={<LoginPage />} />
             </Routes>
         </Router>
