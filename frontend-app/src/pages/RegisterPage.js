@@ -21,7 +21,7 @@ export function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post("http://localhost:3001/register", inputs);
+      await axios.post("http://localhost:3001/signup", inputs);
       navigate("/recipe");
     } catch (err) {
       setError(err.response.data);
@@ -30,7 +30,7 @@ export function Register() {
 
 
   //ONLY KEEP STYLING! THE LOGIC DOES NOT WORK!
-  
+
   return (
     <div className="container" style={{ maxWidth: 420, margin: "40px auto" }}>
       <h1 className={classes.title} style={{ textAlign: "center" }}>

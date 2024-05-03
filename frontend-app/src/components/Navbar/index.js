@@ -21,7 +21,7 @@ const Navbar = () => {
                         Orders
                     </NavLink>
                     <NavLink to="/signup" activeStyle>
-                        Register
+                        Logout
                     </NavLink>
                     <NavLink to="/login" activeStyle>
                        Login
