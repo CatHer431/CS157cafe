@@ -6,6 +6,7 @@ const bodyParser = require("body-parser");
 const bcrypt = require("bcrypt");
 const sessions = require("express-session");
 const checkRole = require("./auth-role");
+const { checkAuth } = require("./checkAuth");
 const http = require("http");
 
 const app = express();
@@ -67,22 +68,11 @@ const getUser = async (username) => {
     return null;
   }
 };
-/*
-app.get(,(req, res) => {
-  con.query(, (err, results) => {
-    if(err) {
-      console.error(err);
-      res.status(500).send("Error")
-    } else {
-      res.json(results);
-    }
-  });
-});
-*/
+
 
 app.post("/signup", async (req, res) => {
   bcrypt
-    .hash(req.body.password1, 10)
+    .hash(req.body.password, 10)
     .then(async (hashedPassword) => {
       //const con = await pool.getConnection();
       try {
@@ -90,7 +80,7 @@ app.post("/signup", async (req, res) => {
           .promise()
           .query(
             "INSERT INTO EMPLOYEE (name, role, user_name, password) VALUES (?, ?, ?, ?)",
-            [req.body.name, req.body.role, req.body.username1, hashedPassword]
+            [req.body.name, req.body.role, req.body.username, hashedPassword]
           );
         console.log("Saved");
         res.json({ message: "Account created successfully!" });
@@ -140,16 +130,17 @@ app.post("/login", async (req, res) => {
   }
 });
 
-app.post("/logout", async (req, res, next) => {
+app.post("/logout", checkAuth, checkRole(["employee", "manager"]), async (req, res, next) => {
   req.session.destroy(function (err) {
     if (err) return next(err);
     res
-    .clearCookie("connect.sid", {
-      path: "/",
-      domain: "localhost",
-      //httpOnly: true,
-      //sameSite: false,
-    }).status(200)
+      .clearCookie("connect.sid", {
+        path: "/",
+        domain: "localhost",
+        //httpOnly: true,
+        //sameSite: false,
+      })
+      .status(200)
       .send("Cookie cleared.");
     //res.send("");
     // Redirect to login after session is regenerated and old session is destroyed
@@ -158,7 +149,7 @@ app.post("/logout", async (req, res, next) => {
 });
 
 // Template code for displaying statistics and data
-app.get("/employees", checkRole('manager'), async (req, res) => {
+app.get("/employees", checkAuth, checkRole("manager"), async (req, res) => {
   try {
     const [employees] = await con.promise().query("SELECT * FROM EMPLOYEE");
     res.send(employees);
@@ -168,7 +159,7 @@ app.get("/employees", checkRole('manager'), async (req, res) => {
   }
 });
 
-app.get("/customers", checkRole(['employee', 'manager']), async (req, res) => {
+app.get("/customers", checkAuth, checkRole(["employee", "manager"]), async (req, res) => {
   try {
     const [customers] = await con.promise().query("SELECT * FROM customers");
     res.json(customers);
@@ -178,25 +169,27 @@ app.get("/customers", checkRole(['employee', 'manager']), async (req, res) => {
   }
 });
 
-app.get("/inventory", checkRole(['employee', 'manager']), async (req, res) => {
+app.get("/inventory", checkAuth, checkRole(["employee", "manager"]), async (req, res) => {
   try {
-    //const con = await pool.getConnection();
     const [inventory] = await con
       .promise()
       .query(
         "SELECT  i.ingredient_id, i.name, i.reorder_thres, v.quantity, v.inventory_id, v.exp_date, v.supplier, v.purchase_price FROM INVENTORY AS v  JOIN INGREDIENT AS i ON i.ingredient_id = v.ingredient_id;"
       );
-    res.json(inventory);
+    res.send(inventory);
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-app.get("/recipes", checkRole(['employee', 'manager']), async (req, res) => {
+app.get("/recipes", checkAuth, checkRole(["employee", "manager"]), async (req, res) => {
   try {
-    //const con = await pool.getConnection();
-    const [recipes] = await con.promise().query("SELECT  r.recipe_id, p.name, p.description, group_concat(concat(i.name, ': ', rd.quantity) separator ', ') AS ingredients FROM RECIPE AS r  JOIN RECIPE_DETAIL AS rd ON r.recipe_id = rd.recipe_id  JOIN PRODUCT AS p ON r.product_id = p.product_id  JOIN INGREDIENT AS i ON rd.ingredient_id = i.ingredient_id group by r.recipe_id;");
+    const [recipes] = await con
+      .promise()
+      .query(
+        "SELECT  r.recipe_id, p.name, p.description, group_concat(concat(i.name, ': ', rd.quantity) separator ', ') AS ingredients FROM RECIPE AS r  JOIN RECIPE_DETAIL AS rd ON r.recipe_id = rd.recipe_id  JOIN PRODUCT AS p ON r.product_id = p.product_id  JOIN INGREDIENT AS i ON rd.ingredient_id = i.ingredient_id group by r.recipe_id;"
+      );
     res.send(recipes);
   } catch (error) {
     console.error("Error:", error);
@@ -204,24 +197,69 @@ app.get("/recipes", checkRole(['employee', 'manager']), async (req, res) => {
   }
 });
 
-app.get("/transactions", checkRole(['employee', 'manager']), async (req, res) => {
+app.post("/recipes-post", checkRole("manager"), async (req, res) => {
   try {
     //const con = await pool.getConnection();
-    const [transactions] = await con
+
+    const productRows = await con
       .promise()
-      .query("SELECT * FROM transactions");
-    res.json(transactions);
+      .query("SELECT product_id FROM PRODUCT WHERE name = ?", req.body.name);
+    const productId = productRows[0][0].product_id;
+
+    const recipeRows = await con
+      .promise()
+      .query("SELECT recipe_id FROM RECIPE WHERE product_id = ?", productId);
+    const recipeid = recipeRows[0][0].recipe_id;
+    const ingredientPromises = req.body.ingredients.map(async (ingredient) => {
+      const ingredientRows = await con
+        .promise()
+        .query(
+          "SELECT ingredient_id FROM INGREDIENT WHERE name = ?",
+          ingredient.ingredient
+        );
+      const ingredientid = ingredientRows[0][0].ingredient_id;
+      await con
+        .promise()
+        .query(
+          "INSERT INTO RECIPE_DETAIL (recipe_id, ingredient_id, quantity) VALUES (?, ?, ?)",
+          [recipeid, ingredientid, ingredient.quantity]
+        );
+    });
+
+    // Execute all promises concurrently and wait for all to complete
+    await Promise.all(ingredientPromises);
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-app.get("/products", checkRole(['employee', 'manager']), async (req, res) => {
+app.get(
+  "/transactions",
+  checkRole(["employee", "manager"]),
+  async (req, res) => {
+    try {
+      //const con = await pool.getConnection();
+      const [transactions] = await con
+        .promise()
+        .query("SELECT * FROM transactions");
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  }
+);
+
+app.get("/orders", checkAuth, checkRole(["employee", "manager"]), async (req, res) => {
   try {
     //const con = await pool.getConnection();
-    const [products] = await con.promise().query("SELECT * FROM products");
-    res.json(products);
+    const [orders] = await con
+      .promise()
+      .query(
+        "SELECT o.order_id, o.order_time, o.order_status, c.name AS cname, od.quantity, od.special_instruction, p.name FROM cafe.ORDER AS o JOIN ORDER_DETAIL as od ON od.order_id = o.order_id JOIN CUSTOMER as c ON c.customer_id = o.customer_id JOIN PRODUCT as p ON p.product_id = od.product_id;"
+      );
+    res.send(orders);
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ error: "Internal Server Error" });
