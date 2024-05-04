@@ -52,6 +52,8 @@ cd frontend-app
 npm start
 ```
 
+Note: If server has an error starting after npm start delete node_modules from backend folder and then npm i and npm start again
+
 10. Log In to the page with the following credentials to view the tables:
 
 ```jsx
