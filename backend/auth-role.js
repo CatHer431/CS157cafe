@@ -1,6 +1,6 @@
 function checkRole(role) {
   return async (req, res, next) => {
-    if (req.session.userData && req.session.userData.role === role) {
+    if (req.session.user && role.includes(req.session.user.role)) {
       next();
     } else {
       res.status(403).send("Forbidden");

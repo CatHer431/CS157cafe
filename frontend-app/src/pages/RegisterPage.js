@@ -22,7 +22,7 @@ export function Register() {
     e.preventDefault();
     try {
       await axios.post("http://localhost:3001/signup", inputs);
-      navigate("/recipe");
+      navigate("/recipes");
     } catch (err) {
       setError(err.response.data);
     }
@@ -56,9 +56,8 @@ export function Register() {
         <label htmlFor="role" style={{ marginRight: 10 }}>Role</label>
         <select id="role" name="role" required value={inputs.role} onChange={handleChange}>
           <option value="">Pick Value</option>
-          <option value="Admin">Admin</option>
-          <option value="Manager">Manager</option>
-          <option value="Staff">Staff</option>
+          <option value="manager">manager</option>
+          <option value="employee">employee</option>
         </select>
         </div>
 
