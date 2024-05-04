@@ -40,3 +40,22 @@ cd backend
 npm start
 ```
 
+8. Open a second terminal and go to the frontend-app folder
+
+```jsx
+cd frontend-app
+```
+
+9. once the directory is set to frontend-app to start the React webpage, in the terminal input:
+
+```jsx
+npm start
+```
+
+10. Log In to the page with the following credentials to view the tables:
+
+```jsx
+Username: andy0123
+Password: andy_cafe_123
+```
+
